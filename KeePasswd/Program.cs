@@ -22,7 +22,7 @@
             var optionSet = new OptionSet
             {
                 {"file=|f=", "Path to the KeePass2 KDBX database (required)", v => _filePath = v},
-                {"passwords=|p=", "Comma seperated list of passwords to try (required)", v => _passwords = v},
+                {"passwords=|p=", "Comma separated list of passwords to try (required)", v => _passwords = v},
                 {"header", "Shows the header of the database file", v => _showHeader = (v != null)},
                 {"h|?|help", "Prints out the options", v => _showHelp = (v != null)}
             };

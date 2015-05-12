@@ -7,21 +7,21 @@ Usage
 -----
 
       --file, -f=VALUE       Path to the KeePass2 KDBX database (required)
-      --passwords, -p=VALUE  Comma seperated list of passwords to try (required)
+      --passwords, -p=VALUE  Comma separated list of passwords to try (required)
 
       --header               Shows the header of the database file
       -h, -?, --help         Prints out the options
 
-**Trying mutliple passwords**
+**Trying multiple passwords**
 
-    $> abc.exe -file "C:\ExampleDatabase.kdbx" -passwords a,b,c,test123
+    $> keepasswd -file "C:\ExampleDatabase.kdbx" -passwords test1,test2,test3
 
-	The password is 'test123'
+	The password is 'test2'
 
 
 **Displaying header data**
 
-    $> abc.exe -file "C:\ExampleDatabase.kdbx" -header
+    $> keepasswd -file "C:\ExampleDatabase.kdbx" -header
 
     Master Seed: 681576DF73AC6AE38A21494AF04723E1968168EE08CC4D1893F72D3F309E42BF
     Encryption IV: 5B61F08E5BDD401F72C0C43DA15E2700
