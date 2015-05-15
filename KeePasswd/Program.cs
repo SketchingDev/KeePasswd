@@ -1,11 +1,10 @@
 ﻿namespace KeePasswd
 {
-    using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Security.Cryptography;
-    using System.Text;
+    using KeePasswd.Header;
     using Mono.Options;
+    using System;
+    using System.IO;
+    using System.Text;
 
     static class Program
     {
@@ -23,7 +22,7 @@
             {
                 {"file=|f=", "Path to the KeePass2 KDBX database (required)", v => _filePath = v},
                 {"passwords=|p=", "Comma separated list of passwords to try (required)", v => _passwords = v},
-                {"header", "Shows the header of the database file", v => _showHeader = (v != null)},
+                {"header", "Prints the decryption specific fields from the file's header", v => _showHeader = (v != null)},
                 {"h|?|help", "Prints out the options", v => _showHelp = (v != null)}
             };
 
@@ -60,14 +59,14 @@
             // Process database
             try
             {
-                KdbxHeader header = KdbxHeader.Create(stream);
+                ISecurityHeader header = new StreamHeader(stream);
                 if (_showHeader)
                 {
-                    Console.Write(header);
+                    (new HeaderOutput(Console.Out)).Write(header);
                     return;
                 }
 
-                TryPasswords(stream, header, _passwords.Split(','));
+                ProcessPasswords(stream, header, _passwords.Split(','));
             }
             catch (Exception e)
             {
@@ -79,73 +78,53 @@
             }
         }
 
-        static void ShowUsage(OptionSet optionSet)
+        private static void ProcessPasswords(Stream stream, ISecurityHeader header, string[] passwords)
+        {
+            using (var keyGenerator = new KeyGenerator(header))
+            {
+                var streamDecryptor = new StreamDecryptor(header);
+
+                bool passwordFound = false;
+                long expectedStartBytesPosition = stream.Position;
+                foreach (string password in passwords)
+                {
+                    // Generate key from password
+                    byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
+                    byte[] key = keyGenerator.Generate(passwordBytes);
+
+                    // Read starting bytes from decrypted stream then reset its position
+                    Stream decryptedStream = streamDecryptor.CreateDecryptStream(stream, key);
+
+                    // Check password by comparing decrypted array
+                    passwordFound = decryptedStream.BeginsWith(header.ExpectedStartBytes);
+                    stream.Position = expectedStartBytesPosition; // Reset stream's position
+
+                    if (passwordFound)
+                    {
+                        Console.WriteLine("The password is '{0}'", password);
+                        break;
+                    }
+                }
+
+                if (passwordFound == false)
+                {
+                    Console.WriteLine("Password not found");
+                }
+            }
+        }
+
+        private static void ShowUsage(OptionSet optionSet)
         {
             Console.WriteLine("KeePasswd");
             optionSet.WriteOptionDescriptions(Console.Out);
         }
 
-        static void TryPasswords(Stream stream, KdbxHeader header, IReadOnlyCollection<string> passwords)
+        private static bool BeginsWith(this Stream stream, byte[] expected)
         {
-            using (var keyFactory = new KeyFactory(header))
-            {
-                long startOfStream = stream.Position;
-                foreach (string password in passwords)
-                {
-                    stream.Position = startOfStream;
-
-                    byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-                    byte[] key = keyFactory.CreateKey(passwordBytes);
-
-                    if (Authenticate(stream, header, key))
-                    {
-                        Console.WriteLine("The password is '{0}'", password);
-                        return;
-                    }
-                }
-
-                Console.WriteLine("The {0} password(s) were all wrong.", passwords.Count);
-            }
-        }
-
-        static bool Authenticate(Stream stream, KdbxHeader header, byte[] key)
-        {
-            Stream decryptedStream = CreatedStreamDecryptor(stream, key, header.EncryptionIv);
-
-            // Compare Expected Start Bytes to Decrypted Bytes
-            int startBytesLength = header.ExpectedStartBytes.Length;
-            byte[] decryptedBytes = new byte[startBytesLength];
-
-            decryptedStream.Read(decryptedBytes, 0, startBytesLength);
-
-            return decryptedBytes.ArrayEquals(header.ExpectedStartBytes);
-        }
-
-        static Stream CreatedStreamDecryptor(Stream stream, byte[] masterKey, byte[] encryptionIv)
-        {
-            var rijndael2 = new RijndaelManaged
-            {
-                BlockSize = 128,
-                IV = encryptionIv,
-                KeySize = 256,
-                Key = masterKey,
-                Mode = CipherMode.CBC,
-                Padding = PaddingMode.PKCS7
-            };
-
-            ICryptoTransform decryptor = rijndael2.CreateDecryptor();
-
-            return new CryptoStream(stream, decryptor, CryptoStreamMode.Read);
-        }
-
-        static bool ArrayEquals(this byte[] one, byte[] two)
-        {
-            if (one.Length != two.Length) return false;
-
-            int total = one.Length;
+            int total = expected.Length;
             for (int i = 0; i < total; i++)
             {
-                if (one[i] != two[i]) return false;
+                if (expected[i] != stream.ReadByte()) return false;
             }
 
             return true;

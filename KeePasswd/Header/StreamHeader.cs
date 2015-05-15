@@ -1,9 +1,15 @@
 ﻿namespace KeePasswd
 {
+    using KeePasswd.Header;
     using System;
     using System.IO;
 
-    class KdbxHeader
+    class InvalidSignatureException : Exception 
+    {
+        public InvalidSignatureException (string message) : base(message){}
+    }
+
+    class StreamHeader : ISecurityHeader
     {
         /// <summary>
         /// File identifier, first 32-bit value.
@@ -19,30 +25,31 @@
         private const uint FileSignaturePreRelease1 = 0x9AA2D903;
         private const uint FileSignaturePreRelease2 = 0xB54BFB66;
 
-        public byte[] MasterSeed { get; set; }
+        public byte[] MasterSeed { get; private set; }
 
-        public byte[] EncryptionIv { get; set; }
+        public byte[] EncryptionIv { get; private set; }
 
-        public UInt64 TransformRounds { get; set; }
+        public UInt64 TransformRounds { get; private set; }
 
-        public byte[] TransformSeed { get; set; }
+        public byte[] TransformSeed { get; private set; }
 
-        public byte[] ExpectedStartBytes { get; set; }
+        public byte[] ExpectedStartBytes { get; private set; }
 
-        public static KdbxHeader Create(Stream stream)
+        public StreamHeader(Stream stream)
         {
-            var header = new KdbxHeader();
-
-            ReadHeader(stream);
-            while (true)
+            if (stream == null)
             {
-                if (ReadHeaderField(stream, header) == false) break;
+                throw new ArgumentNullException("stream");
             }
 
-            return header;
+            ReadSignatures(stream);
+            while (true)
+            {
+                if (ReadField(stream) == false) break;
+            }
         }
 
-        private static void ReadHeader(Stream stream)
+        private void ReadSignatures(Stream stream)
         {
             // Read signatures
             byte[] signatureData = new byte[4];
@@ -55,7 +62,7 @@
 
             if ((signatureOne != FileSignature1 || signatureTwo != FileSignature2) &&
                 (signatureOne != FileSignaturePreRelease1 || signatureTwo != FileSignaturePreRelease2))
-                throw new Exception("Invalid file signature.\nCheck that this is a KDBX database created using KeePass 2.x");
+                throw new InvalidSignatureException("Invalid file signature.\nCheck that this is a KDBX database created using KeePass 2.x");
 
             // Read DB version
             byte[] dbVersionData = new byte[4];
@@ -64,7 +71,7 @@
             UInt32 databaseVersion = MemUtil.BytesToUInt32(dbVersionData);
         }
 
-        private static bool ReadHeaderField(Stream stream, KdbxHeader header)
+        private bool ReadField(Stream stream)
         {
             int fieldId = stream.ReadByte();
 
@@ -83,34 +90,24 @@
                     result = false;
                     break;
                 case 4: // Master Seed
-                    header.MasterSeed = data;
+                    MasterSeed = data;
                     break;
                 case 5: // Transform Seed
-                    header.TransformSeed = data;
+                    TransformSeed = data;
                     break;
                 case 6: // Transform Rounds
-                    header.TransformRounds = MemUtil.BytesToUInt64(data);
+                    TransformRounds = MemUtil.BytesToUInt64(data);
                     break;
                 case 7: // Encryption IV
-                    header.EncryptionIv = data;
+                    EncryptionIv = data;
                     break;
                 case 9: // Stream Start Bytes
-                    header.ExpectedStartBytes = data;
+                    ExpectedStartBytes = data;
                     break;
             }
 
             return result;
         }
-
-        public override string ToString()
-        {
-            string output = "Master Seed: " + (MemUtil.ByteArrayToHexString(MasterSeed) ?? "None");
-            output += "\nEncryption IV: " + (MemUtil.ByteArrayToHexString(EncryptionIv) ?? "None");
-            output += "\nTransform Rounds: " + TransformRounds;
-            output += "\nTransform Seed: " + (MemUtil.ByteArrayToHexString(TransformSeed) ?? "None");
-            output += "\nExpected Start-Bytes: " + (MemUtil.ByteArrayToHexString(ExpectedStartBytes) ?? "None");
-
-            return output;
-        }
     }
 }
+

@@ -1,16 +1,14 @@
 ﻿KeePasswd
 =========
 
-KeePasswd is a sample application that accompanies my blog article [showing how KeePass 2.x authenticates a password]().
+KeePasswd is a sample application that accompanies my blog article [showing how KeePass 2.x authenticates passwords]().
 
 Usage
 -----
-
-      --file, -f=VALUE       Path to the KeePass2 KDBX database (required)
-      --passwords, -p=VALUE  Comma separated list of passwords to try (required)
-
-      --header               Shows the header of the database file
-      -h, -?, --help         Prints out the options
+    --file, -f=VALUE       Path to the KeePass2 KDBX database (required)
+    --passwords, -p=VALUE  Comma separated list of passwords to try (required
+    --header               Prints the decryption specific fields from the file's header
+    -h, -?, --help         Prints out the options
 
 **Trying multiple passwords**
 

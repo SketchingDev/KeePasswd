@@ -1,39 +1,42 @@
 ﻿namespace KeePasswd
 {
+    using KeePasswd.Header;
     using System;
     using System.IO;
     using System.Security.Cryptography;
 
+    interface IKeyGenerator
+    {
+        byte[] Generate(params byte[] keys);
+    }
+
     /// <summary>
     /// Generates the master key used to decrypt the database body.
     /// </summary>
-    class KeyFactory : IDisposable
+    class KeyGenerator : IKeyGenerator, IDisposable
     {
-        private SHA256Managed _sha256;
+        private readonly SHA256Managed _sha256;
 
-        private RijndaelManaged _transformAes;
+        private readonly RijndaelManaged _transformAes;
 
         private readonly ulong _transformRounds;
 
         private readonly byte[] _masterSeed;
 
-        public KeyFactory(KdbxHeader header)
+        private readonly ISecurityHeader _header;
+
+        public KeyGenerator(ISecurityHeader header)
         {
             if (header == null)
             {
                 throw new ArgumentNullException("header");
             }
 
+            _header = header;
             _transformRounds = header.TransformRounds;
             _masterSeed = header.MasterSeed;
 
-            Initialise(header);
-        }
-
-        private void Initialise(KdbxHeader header)
-        {
             _sha256 = new SHA256Managed();
-
             _transformAes = new RijndaelManaged
             {
                 Mode = CipherMode.ECB,
@@ -43,7 +46,7 @@
             };
         }
 
-        public byte[] CreateKey(params byte[] keys)
+        public byte[] Generate(params byte[] keys)
         {
             byte[] compositeKey = CreateCompositeKey(keys);
 
