@@ -1,7 +1,7 @@
 ﻿KeePasswd
 =========
 
-KeePasswd is a sample application that accompanies my blog article [showing how KeePass 2.x authenticates passwords](http://www.flyingtophat.co.uk/blog/2015/05/02/why-you-cant-recover-your-keepass-password.html).
+KeePasswd is a sample application that accompanies my blog article [showing how KeePass 2.x authenticates passwords](https://sketchingdev.co.uk/blog/why-you-cant-recover-your-keepass-password.html).
 
 Usage
 -----
